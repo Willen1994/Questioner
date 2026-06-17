@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mastery Flashcards</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #0f172a;
+            --card-front: #ffffff;
+            --card-back: #1e293b;
+        }
+
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 100vh; background: radial-gradient(circle at top right, #1e1b4b, #0f172a); 
+            margin: 0; color: white;
+        }
+
+        #progress-container { width: 400px; height: 8px; background: #334155; border-radius: 4px; margin-bottom: 20px; overflow: hidden; }
+        #progress-bar { height: 100%; width: 0%; background: var(--primary); transition: width 0.4s ease; }
+
+        .card { width: 400px; height: 280px; perspective: 1000px; cursor: pointer; }
+        .card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); transform-style: preserve-3d; }
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+
+        .front, .back { 
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden; 
+            display: flex; align-items: center; justify-content: center; padding: 30px; 
+            box-sizing: border-box; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); text-align: center; font-size: 1.2rem;
+        }
+        .front { background: var(--card-front); color: #0f172a; }
+        .back { 
+            background: var(--card-back); color: #f8fafc; transform: rotateY(180deg); 
+            overflow-y: auto; align-items: flex-start; justify-content: flex-start;
+        }
+
+        .controls { margin-top: 30px; display: flex; gap: 20px; }
+        button { 
+            padding: 12px 28px; cursor: pointer; border: none; border-radius: 50px; 
+            background: rgba(255,255,255,0.1); color: white; font-weight: 600; 
+            backdrop-filter: blur(10px); transition: all 0.3s; border: 1px solid rgba(255,255,255,0.2);
+        }
+        button:hover { background: var(--primary); transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+
+    <div id="progress-container"><div id="progress-bar"></div></div>
+    
+    <div class="card" id="flashcard" onclick="this.classList.toggle('flipped')">
+        <div class="card-inner">
+            <div class="front" id="question"></div>
+            <div class="back" id="answer"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="prevCard()">← Back</button>
+        <button onclick="nextCard()">Next →</button>
+    </div>
+
+    <script>
+        const cards = [
+            { q: "Draw the elements of the dissolving system and name them.", a: "Tower Tank → Wire Tank → Level Tank → ACF Tank → Heat Exchanger → Head Tank → Safety Filter Tank → Plating Machine → Collection Tank → Sump Tank " },
+            { q: "Is the copper concentration higher returning to the Collection tank or leaving the ACFs?", a: "Higher leaving the ACFs (depleted electrolyte returning to be recharged)." },
+            { q: "What PPEs should be used in the Dissolving area?", a: "Safety Helmet with face shield, Face mask, Cover all dissolving uniform, Safety gloves, Safety shoes, Safety boots" },
+            { 
+                q: "How do you call the dissolving tanks, which copper types can you load to them?", 
+                a: `
+                    <div style="display: flex; flex-direction: column; gap: 15px; width: 100%; text-align: left;">
+                        <div style="background: rgba(99, 102, 241, 0.15); padding: 10px; border-radius: 8px; border-left: 4px solid var(--primary);">
+                            <strong style="color: var(--primary); display: block; margin-bottom: 5px;">Tower Tank</strong>
+                            <span style="font-size: 0.9em;">Sudronics, Shredded Copper, Metalex, Drot, Hair wire</span>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 10px; border-radius: 8px; border-left: 4px solid #94a3b8;">
+                            <strong style="color: #cbd5e1; display: block; margin-bottom: 5px;">Wire Tank</strong>
+                            <span style="font-size: 0.9em;">Shredded copper, cut wire, Trim Scrap foil</span>
+                        </div>
+                    </div>
+                ` 
+            },
+            { q: "What kind of additives do we have (dosed from skids)?", a: "Solugel, HEC and SPS" },
+            { q: "What are the main components of the electrolyte?", a: "Copper, Sulfuric Acid, Water, and additives." },
+            { q: "Identify the chemical symbols for the following substances:", a: "<div style='text-align:left; font-size: 0.9em; line-height: 1.6;'>Hydrochloric Acid: <b>HCl</b><br>Copper: <b>Cu</b><br>Chromium VI: <b>Cr<sup>6+</sup></b><br>Sulphuric Acid: <b>H<sub>2</sub>SO<sub>4</sub></b><br>Sodium Hydroxide: <b>NaOH</b></div>" },
+            { q: "What should you do if you come into contact with an acidic liquid?", a: "Wash with water and apply first aid available in the company." },
+            { q: "What is typical of the Level Tank?", a: "Process stabilization, inventory/surge capacity, and concentration control." },
+            { q: "For what purpose is iron(Fe) dissolved and where?", a: "Stabilizes redox potential and prevents degradation of organic additives." },
+            { q: "For what purpose is lead (Pb) dissolved and where?", a: "Ensures longevity and protection of anode plates in the plater." },
+            { q: "What kind of filter cartridges (micron) do we use in the Safety Filter?", a: " 5 and 10 microns." },
+            { q: "What methods can we use to pump out liquid from the Sump tank?", a: "Sump pumps, pneumatic pump, or AODD pumps (Air-operated double diaphragm)." },
+            { q: "Name the tanks in the system.", a: "Tower Tank, Wire Tank, Level Tank, Active Carbon Filter Tank, Head Tank, Safety Filter Tank, Collection Tank, Sump Tank." },
+            { q: "What daily filtering materials do you know? In what packages?", a: "Filter Aid 25kg and Carbon Filter on a big bag." },
+            { q: "Who can use the lifting machines in the area?", a: "Only with a license, certified/authorized personnel with specific training." },
+            { q: "What is the smallest permissible circumference for polish brushes?", a: "940" }
+        ];
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        shuffle(cards);
+        let index = 0;
+
+        function updateCard() {
+            document.getElementById('question').innerHTML = cards[index].q;
+            document.getElementById('answer').innerHTML = cards[index].a;
+            document.getElementById('progress-bar').style.width = ((index + 1) / cards.length) * 100 + "%";
+        }
+
+        function nextCard() {
+            document.getElementById('flashcard').classList.remove('flipped');
+            setTimeout(() => {
+                index = (index + 1) % cards.length;
+                updateCard();
+            }, 300);
+        }
+
+        function prevCard() {
+            document.getElementById('flashcard').classList.remove('flipped');
+            setTimeout(() => {
+                index = (index - 1 + cards.length) % cards.length;
+                updateCard();
+            }, 300);
+        }
+
+        updateCard();
+    </script>
+</body>
+</html>
